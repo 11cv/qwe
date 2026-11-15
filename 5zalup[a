@@ -12,3 +12,27 @@ alert icmp any any -> $HOME_NET any (msg:"LAB4 ICMP: флуд эхо-запро�
 # --- ЛР4: SYN-сканирование портов: алерт после 10 SYN за 5 с ---
 alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"LAB4 SCAN: SYN-сканирование портов"; flags:S; detection_filter:track by_src, count 10, seconds 5; classtype:attempted-recon; sid:1000005; rev:1;)
 EOF
+
+sudo tee -a /etc/suricata/rules/local.rules >/dev/null <<'EOF'
+
+# --- Ping of Death (ЛР № 3): собранная из фрагментов дейтаграмма > 1000 Б ---
+alert icmp any any -> $HOME_NET any (msg:"LAB4 PING-OF-DEATH: собранный echo-пакет > 1000 Б"; itype:8; dsize:>1000; classtype:attempted-dos; sid:1000010; rev:1;)
+
+# --- фрагментированный IP-пакет с флагом MF (ручная сборка Scapy, ЛР № 3) ---
+alert ip any any -> $HOME_NET any (msg:"LAB4 IP: фрагментированный пакет (MF)"; fragbits:M; classtype:bad-unknown; sid:1000011; rev:1;)
+
+# --- Smurf (ЛР № 3): эхо-запрос на направленный широковещательный адрес ---
+alert icmp $EXTERNAL_NET any -> 192.168.1.255 any (msg:"LAB4 SMURF: эхо-запрос на широковещательный адрес извне"; itype:8; classtype:attempted-dos; sid:1000012; rev:1;)
+
+# --- Smurf: лавина эхо-ответов одной жертве (по получателю) ---
+alert icmp $HOME_NET any -> $HOME_NET any (msg:"LAB4 SMURF: лавина эхо-ответов получателю"; itype:0; threshold:type threshold, track by_dst, count 10, seconds 5; classtype:attempted-dos; sid:1000013; rev:1;)
+
+# --- ICMP-туннель (ЛР № 3а): HTTP внутри ICMP ---
+alert icmp any any -> any any (msg:"LAB4 ICMP-ТУННЕЛЬ: HTTP внутри ICMP"; itype:8; content:"HTTP"; classtype:policy-violation; sid:1000014; rev:1;)
+
+# --- ICMP-туннель: маркер передаваемых данных ---
+alert icmp any any -> any any (msg:"LAB4 ICMP-ТУННЕЛЬ: маркер TOPSECRET-EXFIL в payload"; content:"TOPSECRET-EXFIL"; classtype:policy-violation; sid:1000015; rev:1;)
+
+# --- ICMP-туннель: серия крупных echo наружу (детектор из ЛР № 3а) ---
+alert icmp $HOME_NET any -> $EXTERNAL_NET any (msg:"LAB4 ICMP-ТУННЕЛЬ: серия крупных echo наружу"; itype:8; dsize:>200; threshold:type threshold, track by_src, count 10, seconds 10; classtype:policy-violation; sid:1000016; rev:1;)
+EOF
