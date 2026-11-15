@@ -1,0 +1,14 @@
+sudo tee -a /etc/suricata/rules/local.rules >/dev/null <<'EOF'
+
+# --- ЛР4: крупный ICMP-payload (кандидат в Ping of Death / ICMP-туннель) ---
+alert icmp any any -> $HOME_NET any (msg:"LAB4 ICMP: подозрительно крупный payload"; itype:8; dsize:>200; classtype:attempted-dos; sid:1000002; rev:1;)
+
+# --- ЛР4: эхо-запрос на широковещательный адрес (Smurf, ЛР № 3) ---
+alert icmp any any -> 192.168.1.255 any (msg:"LAB4 SMURF: эхо-запрос на широковещательный адрес"; itype:8; classtype:attempted-dos; sid:1000003; rev:1;)
+
+# --- ЛР4: серия эхо-запросов (флуд): алерт на каждые 20 пакетов за 10 с ---
+alert icmp any any -> $HOME_NET any (msg:"LAB4 ICMP: флуд эхо-запросов"; itype:8; threshold:type threshold, track by_src, count 20, seconds 10; classtype:attempted-dos; sid:1000004; rev:1;)
+
+# --- ЛР4: SYN-сканирование портов: алерт после 10 SYN за 5 с ---
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"LAB4 SCAN: SYN-сканирование портов"; flags:S; detection_filter:track by_src, count 10, seconds 5; classtype:attempted-recon; sid:1000005; rev:1;)
+EOF
